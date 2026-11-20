@@ -36,6 +36,7 @@ extension Color {
         hideInBackground = d.bool(forKey: "hide")
         theme = d.integer(forKey: "theme")
         dailyGoal = d.integer(forKey: "goal")
+        if ProcessInfo.processInfo.arguments.contains("-uiTour") { theme = 2 }
     }
 }
 
@@ -160,6 +161,24 @@ struct AppearIn: ViewModifier {
                 withAnimation(a.delay(Double(index) * 0.05)) { shown = true }
             }
     }
+}
+
+/// Positions in `a` and `b` that belong to their longest common subsequence (case-insensitive).
+/// Lets a single missing letter be marked alone instead of everything after it.
+func lcsMatch(_ a: [Character], _ b: [Character]) -> (a: Set<Int>, b: Set<Int>) {
+    let x = a.map { String($0).lowercased() }, y = b.map { String($0).lowercased() }
+    var dp = Array(repeating: Array(repeating: 0, count: y.count + 1), count: x.count + 1)
+    for i in stride(from: x.count - 1, through: 0, by: -1) {
+        for j in stride(from: y.count - 1, through: 0, by: -1) {
+            dp[i][j] = x[i] == y[j] ? dp[i + 1][j + 1] + 1 : max(dp[i + 1][j], dp[i][j + 1])
+        }
+    }
+    var i = 0, j = 0, ma = Set<Int>(), mb = Set<Int>()
+    while i < x.count, j < y.count {
+        if x[i] == y[j] { ma.insert(i); mb.insert(j); i += 1; j += 1 }
+        else if dp[i + 1][j] >= dp[i][j + 1] { i += 1 } else { j += 1 }
+    }
+    return (ma, mb)
 }
 
 func normalized(_ s: String) -> String {

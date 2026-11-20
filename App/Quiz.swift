@@ -181,6 +181,7 @@ struct AnswerInput: View {
 
     var body: some View {
         let target = Array(word), typed = Array(typing.text)
+        let matched = checked ? lcsMatch(typed, target).a : []
         ZStack {
             TextField("", text: $typing.text)
                 .focused(focused)
@@ -210,7 +211,7 @@ struct AnswerInput: View {
                 HStack(spacing: 6) {
                     ForEach(target.indices, id: \.self) { i in
                         let ch = i < typed.count ? String(typed[i]) : ""
-                        let right = ch.lowercased() == String(target[i]).lowercased()
+                        let right = checked ? matched.contains(i) : ch.lowercased() == String(target[i]).lowercased()
                         let isCursor = !checked && i == typed.count
                         let border: Color = checked ? (right ? .good : .bad) : (isCursor ? .accentBlue : Color.primary.opacity(0.15))
                         Text(ch)
@@ -263,11 +264,11 @@ struct FeedbackCard: View {
 
     /// Correct spelling with the letters the user missed underlined in green.
     private var highlighted: AttributedString {
-        let t = Array(typed.lowercased())
+        let hit = lcsMatch(Array(typed), Array(word.en)).b
         var s = AttributedString()
         for (i, ch) in word.en.enumerated() {
             var part = AttributedString(String(ch))
-            if i >= t.count || String(ch).lowercased() != String(t[i]) {
+            if !hit.contains(i) {
                 part.foregroundColor = .good
                 part.underlineStyle = .single
             }

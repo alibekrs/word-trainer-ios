@@ -49,7 +49,7 @@ struct WordOfDayView: View {
                 Text(tr).font(.title3.weight(.heavy)).foregroundStyle(Color.accentBlue)
             }
             ForEach(data?.dict?.meanings ?? [], id: \.self) { m in
-                (Text(m.pos + "  ").foregroundStyle(.secondary).font(.footnote.weight(.bold)) + Text(m.def).font(.subheadline))
+                Text("\(Text(m.pos).foregroundStyle(.secondary).font(.footnote.weight(.bold)))  \(m.def)").font(.subheadline)
             }
             ForEach(data?.examples ?? [], id: \.self) { ExampleRow(example: $0) }
             if data == nil && !failed { ProgressView().frame(maxWidth: .infinity).padding() }
@@ -101,7 +101,7 @@ struct SetsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    ScreenTitle(title: "Наборы", subtitle: "\(NGSL.words.count.formatted()) самых нужных слов, \(NGSL.levelCount) уровней")
+                    ScreenTitle(title: "Наборы", subtitle: "\(NGSL.words.count.formatted(.number.locale(Locale(identifier: "ru_RU")))) самых нужных слов, \(NGSL.levelCount) уровней")
                         .appear(0)
                     if let message { Text(message).font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading) }
                     let have = Set(store.words.map { normalized($0.en) })
