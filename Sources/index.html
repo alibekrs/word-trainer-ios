@@ -1,0 +1,244 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Тренажёр слов</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap">
+<style>
+/* One centered column: list editor → quiz card → result. */
+:root{
+  --bg:#f3f7f1; --card:#ffffff; --fg:#1f2a1c; --muted:#66745f; --line:#dbe5d5;
+  --accent:#3fa34d; --accent-dk:#2f7f3a; --bad:#d9483b; --bad-bg:#fde9e6; --good-bg:#e4f5e2;
+  --font:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a12; --card:#1d251a; --fg:#e8f0e3; --muted:#9aab92; --line:#2e3a29;
+  --accent:#5cc46a; --accent-dk:#3fa34d; --bad:#ff7a6c; --bad-bg:#3a1f1b; --good-bg:#1e3a1f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a12; --card:#1d251a; --fg:#e8f0e3; --muted:#9aab92; --line:#2e3a29;
+  --accent:#5cc46a; --accent-dk:#3fa34d; --bad:#ff7a6c; --bad-bg:#3a1f1b; --good-bg:#1e3a1f; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:500 16px/1.5 var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px}
+main{max-width:560px;margin:0 auto;display:grid;gap:16px}
+h1{font-weight:900;font-size:1.8rem;margin:0;text-wrap:balance}
+h2{font-weight:800;font-size:1.15rem;margin:0}
+.sub{color:var(--muted);margin:0}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:12px}
+textarea,input[type=text]{font:inherit;color:var(--fg);background:var(--bg);border:2px solid var(--line);border-radius:12px;padding:10px 12px;width:100%;box-sizing:border-box}
+textarea{min-height:90px;resize:vertical}
+textarea:focus,input:focus{outline:none;border-color:var(--accent)}
+button{font:800 1rem var(--font);cursor:pointer;border:none;border-radius:14px;padding:12px 18px;letter-spacing:.02em}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-dk)}
+.primary:active{transform:translateY(3px);box-shadow:0 1px 0 var(--accent-dk)}
+.primary:disabled{opacity:.5;cursor:default}
+.ghost{background:transparent;color:var(--fg);border:2px solid var(--line)}
+.row-btns{display:flex;gap:10px;flex-wrap:wrap}
+.row-btns>*{flex:1 1 auto}
+.words{display:grid;gap:8px}
+.word{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center}
+.word input{padding:8px 10px}
+.del{background:transparent;color:var(--muted);padding:6px 10px;font-size:1.2rem}
+.status{color:var(--muted);font-size:.9rem;min-height:1.2em;margin:0}
+.badge{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.bar{height:16px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.prompt{font-size:1.8rem;font-weight:900;text-align:center;margin:8px 0;overflow-wrap:anywhere}
+.speak{background:var(--good-bg);color:var(--accent-dk);justify-self:center}
+#answer{font-size:1.3rem;text-align:center}
+.fb{border-radius:14px;padding:12px 14px;font-weight:800}
+.fb.ok{background:var(--good-bg);color:var(--accent-dk)}
+.fb.no{background:var(--bad-bg);color:var(--bad)}
+.fb b{font-size:1.2rem;letter-spacing:.04em}
+.big{font-size:3rem;font-weight:900;text-align:center;margin:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:420px){.word{grid-template-columns:1fr auto}.word .tr{grid-column:1/2}}
+</style>
+
+<main>
+  <header>
+    <h1>Тренажёр слов</h1>
+    <p class="sub">Впиши слова — я переведу, а потом проверю, как ты их пишешь.</p>
+  </header>
+
+  <!-- Editor -->
+  <section id="edit" class="card">
+    <label for="newWords"><h2>Добавить слова</h2></label>
+    <textarea id="newWords" placeholder="по одному в строке или через запятую&#10;necessary, rhythm, separate"></textarea>
+    <button id="addBtn" class="primary">Добавить и перевести</button>
+    <p id="status" class="status"></p>
+    <div class="row-btns" style="justify-content:space-between;align-items:center">
+      <h2 id="count" style="flex:0 1 auto"></h2>
+      <button id="clearBtn" class="ghost" style="flex:0 0 auto;padding:6px 12px;font-size:.85rem">Очистить</button>
+    </div>
+    <p class="badge" id="exampleNote" hidden>Это пример — нажми «Очистить» и добавь свои</p>
+    <div class="words" id="words"></div>
+    <button id="startBtn" class="primary">Начать тренировку</button>
+  </section>
+
+  <!-- Quiz -->
+  <section id="quiz" class="card" hidden>
+    <div class="row-btns" style="align-items:center">
+      <button id="quitBtn" class="ghost" style="flex:0 0 auto;padding:6px 12px" aria-label="Выйти">✕</button>
+      <div class="bar" style="flex:1 1 auto"><i id="bar"></i></div>
+    </div>
+    <p class="badge" style="text-align:center;margin:0">Напиши по-английски</p>
+    <p id="prompt" class="prompt"></p>
+    <button id="speakBtn" class="speak">🔊 Послушать</button>
+    <input id="answer" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ответ">
+    <div id="fb" class="fb" hidden></div>
+    <button id="checkBtn" class="primary">Проверить</button>
+  </section>
+
+  <!-- Result -->
+  <section id="result" class="card" hidden>
+    <p class="big" id="score"></p>
+    <p class="sub" style="text-align:center" id="scoreText"></p>
+    <div id="mistakes"></div>
+    <div class="row-btns">
+      <button id="againBtn" class="primary">Ещё раз</button>
+      <button id="mistakesBtn" class="primary">Только ошибки</button>
+      <button id="backBtn" class="ghost">К списку</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const EXAMPLE = [
+  {w:"necessary",t:"необходимый"},{w:"rhythm",t:"ритм"},{w:"separate",t:"отдельный"},
+  {w:"definitely",t:"определённо"},{w:"accommodate",t:"вмещать, размещать"}];
+let words, isExample = false;
+try { words = JSON.parse(localStorage.getItem("words")); } catch {}
+if (!Array.isArray(words)) { words = EXAMPLE.map(x => ({...x})); isExample = true; }
+const save = () => { try { localStorage.setItem("words", JSON.stringify(words)); } catch {} };
+const norm = s => s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[’`]/g, "'");
+
+// ---------- editor ----------
+function renderList() {
+  $("count").textContent = `Мои слова: ${words.length}`;
+  $("exampleNote").hidden = !isExample;
+  const box = $("words"); box.textContent = "";
+  words.forEach((x, i) => {
+    const row = document.createElement("div"); row.className = "word";
+    const w = Object.assign(document.createElement("input"), {type:"text", value:x.w, id:"w"+i});
+    const t = Object.assign(document.createElement("input"), {type:"text", value:x.t, id:"t"+i, className:"tr", placeholder:"перевод…"});
+    w.setAttribute("aria-label","Слово"); t.setAttribute("aria-label","Перевод");
+    w.oninput = () => { x.w = w.value; isExample = false; save(); };
+    t.oninput = () => { x.t = t.value; isExample = false; save(); };
+    const d = Object.assign(document.createElement("button"), {className:"del", textContent:"×", title:"Удалить"});
+    d.setAttribute("aria-label", "Удалить " + x.w);
+    d.onclick = () => { words.splice(i, 1); save(); renderList(); };
+    row.append(w, t, d); box.append(row);
+  });
+  $("startBtn").disabled = !words.some(x => x.w.trim());
+}
+
+async function translate(list) {
+  const sample = await (window.claude?.use("sample") ?? null);
+  $("status").textContent = "Перевожу…";
+  if (!sample) return translateFree(list);
+  try {
+    const res = await sample.json(
+      "Translate each English word or phrase into Russian. Give the most common meaning, short (1-3 words). " +
+      "Reply with ONLY a JSON object mapping each input exactly as given to its Russian translation.\n" +
+      JSON.stringify(list.map(x => x.w)), {modelTier:"quick"});
+    list.forEach(x => { if (!x.t && res && typeof res[x.w] === "string") x.t = res[x.w]; });
+    save(); renderList();
+    $("status").textContent = "Готово. Проверь перевод — его можно исправить.";
+  } catch (e) {
+    $("status").textContent = e && e.code === "not_granted"
+      ? "Автоперевод выключен — впиши перевод вручную."
+      : "Не получилось перевести. Попробуй ещё раз или впиши вручную.";
+  }
+}
+
+// Outside claude.ai (the iPhone app): free MyMemory API, no key needed.
+async function translateFree(list) {
+  let fail = 0;
+  await Promise.all(list.map(async x => {
+    try {
+      const r = await fetch("https://api.mymemory.translated.net/get?langpair=en|ru&q=" + encodeURIComponent(x.w));
+      const j = await r.json(), t = j?.responseData?.translatedText;
+      if (j?.responseStatus == 200 && t) { if (!x.t) x.t = t; } else fail++;
+    } catch { fail++; }
+  }));
+  save(); renderList();
+  $("status").textContent = fail ? `Не перевелось слов: ${fail} — впиши вручную.` : "Готово. Проверь перевод — его можно исправить.";
+}
+
+$("addBtn").onclick = () => {
+  const have = new Set(words.map(x => norm(x.w)));
+  const fresh = $("newWords").value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean)
+    .filter(s => !have.has(norm(s)) && have.add(norm(s))).map(w => ({w, t:""}));
+  if (!fresh.length) { $("status").textContent = "Нет новых слов."; return; }
+  if (isExample) { words = []; isExample = false; }
+  words.push(...fresh); $("newWords").value = ""; save(); renderList();
+  translate(fresh);
+};
+$("clearBtn").onclick = () => { words = []; isExample = false; save(); renderList(); };
+
+// ---------- quiz ----------
+let queue, total, firstTry, wrong, cur, checked;
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const show = id => ["edit", "quiz", "result"].forEach(s => $(s).hidden = s !== id);
+
+function start(list) {
+  queue = shuffle(list.filter(x => x.w.trim()).map(x => ({...x})));
+  if (!queue.length) return;
+  total = queue.length; wrong = new Map(); firstTry = 0;
+  show("quiz"); next();
+}
+function next() {
+  if (!queue.length) return finish();
+  cur = queue[0]; checked = false;
+  $("bar").style.width = (100 * (total - queue.length) / total) + "%";
+  $("prompt").textContent = cur.t.trim() || "🔊 (послушай слово)";
+  $("answer").value = ""; $("answer").disabled = false; $("answer").focus();
+  $("fb").hidden = true; $("checkBtn").textContent = "Проверить";
+  if (!cur.t.trim()) speak();
+}
+function check() {
+  if (checked) return next();
+  const a = $("answer").value; if (!a.trim()) return;
+  checked = true; $("answer").disabled = true; queue.shift();
+  const ok = norm(a) === norm(cur.w), fb = $("fb");
+  fb.hidden = false; fb.className = "fb " + (ok ? "ok" : "no"); fb.textContent = "";
+  if (ok) {
+    fb.textContent = "Верно! 🎉";
+    if (!wrong.has(cur.w)) firstTry++;
+  } else {
+    wrong.set(cur.w, cur);
+    queue.splice(Math.min(queue.length, 3), 0, cur); // shortcut: wrong word comes back ~3 cards later
+    const b = document.createElement("b"); b.textContent = cur.w;
+    fb.append("Правильно: ", b);
+  }
+  $("checkBtn").textContent = "Дальше"; $("checkBtn").focus();
+}
+function finish() {
+  $("bar").style.width = "100%"; show("result");
+  $("score").textContent = `${firstTry} / ${total}`;
+  $("scoreText").textContent = wrong.size ? "с первой попытки. Слова с ошибками:" : "Без единой ошибки! 🌟";
+  const m = $("mistakes"); m.textContent = "";
+  wrong.forEach(x => { const p = document.createElement("p"); p.style.margin = "4px 0";
+    const b = document.createElement("b"); b.textContent = x.w; p.append(b, " — " + x.t); m.append(p); });
+  $("mistakesBtn").hidden = !wrong.size;
+}
+
+// ---------- speech ----------
+let tts = null; window.claude?.use("tts").then(t => tts = t).catch(() => {});
+function speak() {
+  if (tts) return tts.speak(cur.w, {language:"en", rate:.85}).catch(() => {});
+  try { const u = new SpeechSynthesisUtterance(cur.w); u.lang = "en-US"; u.rate = .85; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {}
+}
+
+$("speakBtn").onclick = speak;
+$("checkBtn").onclick = check;
+$("answer").addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+$("checkBtn").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); check(); } });
+$("startBtn").onclick = () => start(words);
+$("againBtn").onclick = () => start(words);
+$("mistakesBtn").onclick = () => start([...wrong.values()]);
+$("backBtn").onclick = $("quitBtn").onclick = () => { show("edit"); renderList(); };
+renderList();
+</script>
+
+</body></html>
