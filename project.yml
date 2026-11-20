@@ -1,24 +1,49 @@
 name: WordTrainer
 options:
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1"
 targets:
   WordTrainer:
     type: application
     platform: iOS
     sources:
-      - path: Sources
+      - path: App
     info:
-      path: Sources/Info.plist
+      path: App/Info.plist
       properties:
         CFBundleDisplayName: Слова
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIBackgroundModes: [audio]
+        ITSAppUsesNonExemptEncryption: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ainura.wordtrainer
+        PRODUCT_BUNDLE_IDENTIFIER: app.wordtrainer.slova
+        MARKETING_VERSION: "2.0"
         CURRENT_PROJECT_VERSION: "1"
-        TARGETED_DEVICE_FAMILY: "1"
-        CODE_SIGNING_ALLOWED: "NO"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "1.3"
+  WordTrainerUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: WordTrainer
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_BUNDLE_IDENTIFIER: app.wordtrainer.slova.uitests
+        TEST_TARGET_NAME: WordTrainer
+schemes:
+  WordTrainer:
+    build:
+      targets:
+        WordTrainer: all
+        WordTrainerUITests: [test]
+    test:
+      targets:
+        - WordTrainerUITests
