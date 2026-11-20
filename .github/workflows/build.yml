@@ -11,32 +11,11 @@ jobs:
           sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" || true
           xcodebuild -version
       - run: brew install xcodegen && xcodegen generate
-      - name: UI tour on simulator
-        timeout-minutes: 25
+      - name: Device build (IPA)
         run: |
-          DEV=$(xcrun simctl list devices available -j | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)['devices']
-          c=[x for k,v in d.items() if 'iOS-26' in k for x in v if x['name'].startswith('iPhone')]
-          print(next((x for x in c if 'Pro Max' in x['name']), c[-1])['udid'])")
-          echo "simulator: $DEV"
-          xcodebuild test -project WordTrainer.xcodeproj -scheme WordTrainer -destination "id=$DEV" \
-            -resultBundlePath tour.xcresult CODE_SIGNING_ALLOWED=NO | xcbeautify || xcodebuild test -project WordTrainer.xcodeproj -scheme WordTrainer -destination "id=$DEV" -resultBundlePath tour2.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|failed|Failing|XCTAssert" | head -60
-      - name: Export screenshots
-        if: always()
-        run: |
-          mkdir -p shots
-          for r in tour.xcresult tour2.xcresult; do [ -d "$r" ] && xcrun xcresulttool export attachments --path "$r" --output-path shots && break; done
-          ls shots | head -50
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ui-tour
-          path: shots
-      - name: Device build
-        run: |
+          set -o pipefail
           xcodebuild -project WordTrainer.xcodeproj -target WordTrainer -configuration Release -sdk iphoneos \
-            SYMROOT="$PWD/build" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -5
+            SYMROOT="$PWD/build" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | tee device.log | grep -E "error:|warning:|BUILD" | head -60
           mkdir Payload && cp -R build/Release-iphoneos/WordTrainer.app Payload/
           test -f Payload/WordTrainer.app/ngsl.txt
           zip -qr WordTrainer.ipa Payload
@@ -44,3 +23,33 @@ jobs:
         with:
           name: WordTrainer-ipa
           path: WordTrainer.ipa
+      - name: UI tour on simulator
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          DEV=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[x for k,v in d.items() if 'iOS-26' in k for x in v if x['name'].startswith('iPhone')]
+          print(next((x for x in c if 'Pro Max' in x['name']), c[-1])['udid'])")
+          echo "simulator: $DEV"
+          xcrun simctl boot "$DEV" || true
+          mkdir -p ~/tour shots
+          # Host-side screenshot service for the test (see UITour.shot).
+          ( while true; do
+              if [ -f ~/tour/request ]; then n=$(cat ~/tour/request); sleep 0.5
+                xcrun simctl io "$DEV" screenshot "shots/$n.png" >/dev/null 2>&1; rm -f ~/tour/request; fi
+              sleep 0.3; done ) &
+          xcodebuild test -project WordTrainer.xcodeproj -scheme WordTrainer -destination "id=$DEV" \
+            -resultBundlePath tour.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee test.log \
+            | grep -E "TOUR-SHOT|error|Fail|fail|Executed|t = .*(Tap|Type)" | head -120
+      - name: Collect
+        if: always()
+        run: |
+          cp test.log device.log shots/ 2>/dev/null || true
+          ls -la shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-tour
+          path: shots

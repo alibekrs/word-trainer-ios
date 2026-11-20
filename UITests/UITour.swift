@@ -10,11 +10,16 @@ final class UITour: XCTestCase {
         app.launch()
     }
 
+    /// Asks the CI host to take the screenshot with `simctl io screenshot` (in-test screenshots time out on CI).
+    /// The simulator shares the host file system, so a request file is enough.
     private func shot(_ name: String) {
-        let a = XCTAttachment(screenshot: app.screenshot())
-        a.name = name
-        a.lifetime = .keepAlways
-        add(a)
+        let dir = (ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] ?? NSHomeDirectory()) + "/tour"
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let req = dir + "/request"
+        try? name.write(toFile: req, atomically: true, encoding: .utf8)
+        let deadline = Date().addingTimeInterval(20)
+        while FileManager.default.fileExists(atPath: req), Date() < deadline { usleep(200_000) }
+        print("TOUR-SHOT \(name)")
     }
 
     private func tab(_ name: String) {
