@@ -228,7 +228,13 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
 
 // ---------- shared: translation, examples, speech ----------
+// Google's free web endpoint (unofficial, better for single words), MyMemory as fallback.
 async function translateOne(w) {
+  try {
+    const g = await getJSON("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ru&dt=t&dt=bd&q=" + encodeURIComponent(w));
+    const opts = [g?.[0]?.[0]?.[0], ...(g?.[1] || []).map(p => p?.[1]?.[0])].filter(Boolean).map(s => s.toLowerCase());
+    if (opts.length) return [...new Set(opts)].slice(0, 2).join(", ");
+  } catch {}
   const j = await getJSON("https://api.mymemory.translated.net/get?langpair=en|ru&q=" + encodeURIComponent(w));
   const t = j?.responseData?.translatedText;
   if (j?.responseStatus != 200 || !t) throw new Error("no translation");
@@ -362,7 +368,7 @@ $("dAdd").onclick = () => {
 };
 
 // ---------- sets ----------
-const LEVEL = 400;
+const LEVEL = Math.ceil(NGSL.length / 7); // 7 levels of ~402 words
 function renderSets() {
   const have = new Set(words.map(x => norm(x.w)));
   const box = $("levels"); box.textContent = "";
